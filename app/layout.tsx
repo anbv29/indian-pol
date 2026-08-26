@@ -13,8 +13,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://india-the-record.anbv29.chatgpt.site'),
   title: 'India: The Record',
   description: 'Switch the government. Explore the record — a source-backed interactive archive of Indian central governments.',
+  openGraph: {
+    title: 'India: The Record',
+    description: 'Switch the government. Explore the record.',
+    images: ['https://india-the-record.anbv29.chatgpt.site/og.png'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'India: The Record',
+    description: 'Switch the government. Explore the record.',
+    images: ['https://india-the-record.anbv29.chatgpt.site/og.png'],
+  },
 };
 
 export default function RootLayout({

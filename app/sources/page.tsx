@@ -1,0 +1,2 @@
+import { DetailBlock, DetailShell } from '../../components/detail-shell';
+export default function SourcesPage() { return <DetailShell eyebrow="Sources" title="The evidence library" summary="A searchable home for official documents, institutional datasets, parliamentary records and transparent secondary research."><DetailBlock title="Source hierarchy" text="Primary official material is preferred, followed by official institutional data, parliamentary records, statistical publications and methodologically transparent research." /></DetailShell>; }

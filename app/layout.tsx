@@ -20,6 +20,15 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: 'India: The Record',
   description: 'Switch the government. Explore the record — a source-backed interactive archive of Indian central governments.',
+  icons: {
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    shortcut: '/favicon-32.png',
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
   openGraph: {
     title: 'India: The Record',
     description: 'Switch the government. Explore the record.',

@@ -3,16 +3,18 @@
 import { useEffect, useState } from 'react';
 import { economyIndicators, type EconomyIndicatorMap, type Observation } from './data/research';
 
-type DataStatus = 'loading' | 'live' | 'fallback';
+type DataStatus = 'ready' | 'loading' | 'live' | 'fallback';
 type WorldBankRow = { date:string; value:number | null };
 type WorldBankMeta = { lastupdated?:string };
 
-export function useLiveEconomy() {
+export function useLiveEconomy(enabled=true) {
   const [indicators,setIndicators] = useState<EconomyIndicatorMap>(economyIndicators);
-  const [status,setStatus] = useState<DataStatus>('loading');
+  const [status,setStatus] = useState<DataStatus>('ready');
   const [lastUpdated,setLastUpdated] = useState('2026-07-13');
 
   useEffect(() => {
+    if(!enabled)return;
+    setStatus('loading');
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(),8000);
 
@@ -45,7 +47,7 @@ export function useLiveEconomy() {
 
     load();
     return () => { controller.abort(); window.clearTimeout(timeout); };
-  },[]);
+  },[enabled]);
 
   return { indicators, status, lastUpdated };
 }

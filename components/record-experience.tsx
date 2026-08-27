@@ -1,126 +1,59 @@
 'use client';
 
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
-import { ArrowDown, ArrowUpRight, BookOpen, Building2, FileSearch, Globe2, Landmark, LineChart as LineIcon, Scale, Search, ShieldCheck } from 'lucide-react';
+import { ArrowDown, ArrowUpRight, BookOpen, Building2, FileSearch, Globe2, LineChart as LineIcon, Scale, Search, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { EconomyChart } from './economy-chart';
-import { getTimeline, governments, legislationSamples, manifestoMetrics, sourceHierarchy, type PartyKey } from '../lib/data/records';
+import { foreignPolicy, governments, legislation, policies, promises, sourceById, sources, timeline, type PartyKey, type PromiseStatus } from '../lib/data/research';
+import { useLiveEconomy } from '../lib/use-live-economy';
 
-const filters = ['All', 'Laws & Bills', 'Policies', 'Economy', 'Infrastructure', 'Social Policy', 'Foreign Policy'];
+const filters = ['All','Laws & Bills','Policies','Economy','Infrastructure','Social Policy','Foreign Policy'];
 const chapters = [
-  { icon: BookOpen, label: 'Timeline', detail: 'Year-by-year record', href: '#timeline' },
-  { icon: FileSearch, label: 'Manifesto tracker', detail: 'Promises & outcomes', href: '#manifesto' },
-  { icon: Scale, label: 'Laws & bills', detail: 'Legislation explorer', href: '#legislation' },
-  { icon: LineIcon, label: 'Economy', detail: 'Term-wide analysis', href: '#economy' },
-  { icon: Building2, label: 'Policies', detail: 'Initiatives & schemes', href: '#policies' },
-  { icon: Globe2, label: 'Foreign policy', detail: 'Global engagements', href: '#foreign-policy' },
+  { icon:BookOpen, label:'Timeline', detail:'Year-by-year record', href:'#timeline' },
+  { icon:FileSearch, label:'Manifesto tracker', detail:'Commitments & evidence', href:'#manifesto' },
+  { icon:Scale, label:'Laws & bills', detail:'Legislation explorer', href:'#legislation' },
+  { icon:LineIcon, label:'Economy', detail:'Comparable indicators', href:'#economy' },
+  { icon:Building2, label:'Policies', detail:'Initiatives & schemes', href:'#policies' },
+  { icon:Globe2, label:'Foreign policy', detail:'Global engagements', href:'#foreign-policy' },
+];
+const statusLabel:Record<PromiseStatus,string> = {
+  substantially_fulfilled:'Substantially fulfilled', partially_fulfilled:'Partially fulfilled', not_fulfilled:'Not fulfilled by term end', insufficient_evidence:'Insufficient evidence',
+};
+const sourceHierarchy = [
+  ['01','Primary law and official documents','Acts, rules, gazette notifications, budgets and executive records.'],
+  ['02','Official institutional data','Government statistical releases, regulators and programme records.'],
+  ['03','Parliamentary and constitutional records','Bills, debates, questions, judgments and legislative history.'],
+  ['04','Institutional comparison data','Consistently defined series used with explicit methodology notes.'],
 ];
 
 function Intro() {
-  const [visible, setVisible] = useState(false);
-  const reduced = useReducedMotion();
-  useEffect(() => {
-    if (reduced || sessionStorage.getItem('record-intro-seen')) return;
-    setVisible(true);
-    sessionStorage.setItem('record-intro-seen', '1');
-    const timer = window.setTimeout(() => setVisible(false), 1500);
-    return () => window.clearTimeout(timer);
-  }, [reduced]);
-  return <AnimatePresence>{visible && <motion.div className="intro" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .35 }}><motion.div className="intro-line" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: .7 }} /><motion.h2 initial={{ clipPath: 'inset(0 0 100% 0)' }} animate={{ clipPath: 'inset(0 0 0% 0)' }} transition={{ delay: .2, duration: .6 }}>INDIA<span>THE RECORD</span></motion.h2></motion.div>}</AnimatePresence>;
+  const [visible,setVisible] = useState(false); const reduced = useReducedMotion();
+  useEffect(()=>{ if(reduced||sessionStorage.getItem('record-intro-seen')) return; setVisible(true); sessionStorage.setItem('record-intro-seen','1'); const timer=window.setTimeout(()=>setVisible(false),1500); return()=>window.clearTimeout(timer); },[reduced]);
+  return <AnimatePresence>{visible&&<motion.div className="intro" initial={{opacity:1}} exit={{opacity:0}} transition={{duration:.35}}><motion.div className="intro-line" initial={{scaleX:0}} animate={{scaleX:1}} transition={{duration:.7}}/><motion.h2 initial={{clipPath:'inset(0 0 100% 0)'}} animate={{clipPath:'inset(0 0 0% 0)'}} transition={{delay:.2,duration:.6}}>INDIA<span>THE RECORD</span></motion.h2></motion.div>}</AnimatePresence>;
 }
 
-export default function RecordExperience() {
-  const [party, setParty] = useState<PartyKey>('bjp');
-  const [filter, setFilter] = useState('All');
-  const [activeYear, setActiveYear] = useState(governments.bjp.years[0]);
-  const [query, setQuery] = useState('');
-  const government = governments[party];
-  const timeline = useMemo(() => getTimeline(party), [party]);
-  const reduced = useReducedMotion();
-  const { scrollYProgress } = useScroll();
-  const parallaxY = useTransform(scrollYProgress, [0, .2], [0, reduced ? 0 : 90]);
-
-  useEffect(() => setActiveYear(governments[party].years[0]), [party]);
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (visible) setActiveYear(Number((visible.target as HTMLElement).dataset.year));
-    }, { rootMargin: '-35% 0px -50% 0px', threshold: [0, .5, 1] });
-    document.querySelectorAll('[data-year]').forEach((node) => observer.observe(node));
-    return () => observer.disconnect();
-  }, [party]);
-
-  const filteredLegislation = legislationSamples.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()));
-
-  return (
-    <main className="site-shell" data-party={party}>
-      <Intro />
-      <motion.div className="ambient ambient-a" style={{ y: parallaxY }} />
-      <div className="ambient ambient-b" /><div className="grid-field" aria-hidden="true" />
-      <header className="topbar">
-        <a className="wordmark" href="#top" aria-label="India: The Record home"><span>INDIA</span><span>THE RECORD</span></a>
-        <nav aria-label="Primary navigation"><a href="#about">About</a><a href="/methodology">Methodology</a><a href="/sources">Sources</a><a className="nav-cta" href="#timeline">Explore data <ArrowUpRight size={13} /></a></nav>
-      </header>
-
-      <section className="hero" id="top">
-        <motion.div className="hero-kicker" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .25 }}><span /> Public archive · Demo prototype</motion.div>
-        <AnimatePresence mode="wait">
-          <motion.div className="hero-main" key={party} initial={{ opacity: 0, y: 12, filter: 'blur(7px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: -8, filter: 'blur(5px)' }} transition={{ duration: .45 }}>
-            <p className="eyebrow">Choose your government record</p>
-            <div className="party-switch" role="group" aria-label="Choose government record">
-              <button className={party === 'bjp' ? 'party-label active' : 'party-label'} onClick={() => setParty('bjp')} aria-pressed={party === 'bjp'}>BJP</button>
-              <button type="button" className="switch-track" aria-label={`Switch to ${party === 'bjp' ? 'Congress' : 'BJP'} record`} aria-pressed={party === 'congress'} onClick={() => setParty(party === 'bjp' ? 'congress' : 'bjp')}><motion.span className="switch-thumb" layout transition={{ duration: .38, ease: [0.22, 1, 0.36, 1] }} /></button>
-              <button className={party === 'congress' ? 'party-label active' : 'party-label'} onClick={() => setParty('congress')} aria-pressed={party === 'congress'}>CONGRESS</button>
-            </div>
-            <h1><span>Switch the government.</span><br />Explore the record.</h1>
-            <p className="hero-copy">Promises. Policies. Laws. Economy. Foreign affairs.<br />A source-backed interactive record of Indian central governments.</p>
-          </motion.div>
-        </AnimatePresence>
-        <div className="term-card" aria-live="polite"><div><span>{government.label.toUpperCase()}</span><strong>{government.coalition}</strong></div><div><span>GOVERNING PERIOD</span><strong>{government.period}</strong></div><div><span>TERM LENGTH</span><strong>10 Years</strong></div><a href="#timeline" aria-label="Begin exploring the term"><ArrowDown size={18} /></a></div>
-        <div className="chapter-strip" aria-label="Explore sections">{chapters.slice(0, 4).map((chapter, index) => <a href={chapter.href} key={chapter.label}><span>0{index + 1}</span><div><strong>{chapter.label}</strong><small>{chapter.detail}</small></div><ArrowUpRight size={13} /></a>)}</div>
-      </section>
-
-      <section className="chapter-nav" aria-label="Record sections">{chapters.map(({ icon: Icon, ...chapter }) => <a href={chapter.href} key={chapter.label}><Icon size={17} /><span><strong>{chapter.label}</strong><small>{chapter.detail}</small></span><ArrowUpRight size={12} /></a>)}</section>
-
-      <section className="timeline-section" id="timeline">
-        <aside className="year-rail"><p>TIMELINE</p><div className="rail-line" /><div className="year-list">{government.years.map((year) => <button key={year} className={activeYear === year ? 'active' : ''} onClick={() => document.getElementById(`year-${year}`)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' })}><span />{year}</button>)}</div></aside>
-        <div className="timeline-content">
-          <div className="section-intro"><span>THE DOCUMENTED RECORD</span><h2>A decade, arranged<br />year by year.</h2><p>A structured view of significant government actions, legislation, policy developments and relevant national events.</p></div>
-          <div className="demo-notice"><b>DEMO / SAMPLE DATA</b> All timeline entries, counts, and chart values in this prototype are illustrative interface content—not verified historical conclusions.</div>
-          <div className="filters" role="group" aria-label="Filter timeline">{filters.map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>
-          {government.years.map((year) => {
-            const entries = timeline.filter((event) => event.year === year && (filter === 'All' || event.category === filter));
-            return <article className="year-chapter" id={`year-${year}`} data-year={year} key={`${party}-${year}`}><div className="giant-year" aria-hidden="true">{year}</div><div className="year-heading"><span>YEAR {String(government.years.indexOf(year) + 1).padStart(2, '0')}</span><h3>{year}</h3><p>Major events · Sample record</p></div><div className="record-list">{entries.length ? entries.map((event) => <motion.a href="/record/sample" className={`record-card ${event.importance}`} key={event.id} initial={{ opacity: 0, y: 22 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .2 }}><div className="record-meta"><span>{event.category}</span><i>{event.date}</i></div><h4>{event.title}</h4><p>{event.summary}</p><div className="source-row"><ShieldCheck size={13} /> Sources: {event.sourceCount}<ArrowUpRight size={14} /></div></motion.a>) : <div className="empty-record">No sample entries in this category for {year}.</div>}</div></article>;
-          })}
-        </div>
-      </section>
-
-      <section className="manifesto-section" id="manifesto">
-        <div className="section-label"><span>02 / MANIFESTO TRACKER</span><p>Promises vs documented record</p></div>
-        <div className="manifesto-head"><h2>The distance between<br /><em>said</em> and <em>done.</em></h2><p>Each promise preserves its original wording, source, assessment method and evidence strength. Values below are demo data.</p></div>
-        <div className="metric-grid">{manifestoMetrics.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong><small>DEMO</small></div>)}</div>
-        <div className="promise-journey"><div className="journey-copy"><span>SAMPLE PROMISE JOURNEY</span><h3>Evidence accumulates<br />stage by stage.</h3><p>Only stages present in the source record should be shown. This sample visual demonstrates the model.</p><a href="/promise/sample">Inspect sample promise <ArrowUpRight size={14} /></a></div><div className="journey-track">{['Promise documented','Policy announced','Implementation recorded','Outcome data available','Assessment completed'].map((stage, index) => <div key={stage}><i>{String(index + 1).padStart(2, '0')}</i><span /><p><b>{stage}</b><small>Illustrative stage</small></p></div>)}</div></div>
-      </section>
-
-      <section className="observatory" id="economy">
-        <div className="observatory-grid" /><div className="section-label"><span>04 / ECONOMIC RECORD</span><p>Term-wide indicator explorer</p></div>
-        <div className="economy-head"><div><h2>A wider lens on<br />the economy.</h2><p>Growth, prices, employment, public finances, trade and investment—kept in their methodological context.</p></div><div className="economy-index"><span>NORMALIZED DEMO INDEX</span><strong>{government.chart.at(-1)}</strong><small>BASE 100 · ILLUSTRATIVE ONLY</small></div></div>
-        <EconomyChart values={government.chart} years={government.years} />
-        <div className="chart-foot"><span>UNIT: Normalized demonstration index</span><span>SOURCE: Interface sample only</span><span>METHODOLOGY: Not historical data</span></div>
-        <div className="indicator-tabs">{['Growth','Prices','Employment','Public finances','Trade','Investment'].map((item, index) => <button className={index === 0 ? 'active' : ''} key={item}><span>0{index + 1}</span>{item}</button>)}</div>
-      </section>
-
-      <section className="legislation-section" id="legislation">
-        <div className="section-label"><span>03 / LAWS & BILLS</span><p>Legislation explorer</p></div><div className="legislation-head"><h2>Read the text.<br />Trace the change.</h2><label><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search sample records" aria-label="Search legislation" /></label></div>
-        <div className="record-table"><div className="table-head"><span>NAME</span><span>TYPE</span><span>STATUS</span><span>SOURCES</span></div>{filteredLegislation.map((item) => <a href="/legislation/sample" key={item.name}><div><b>{item.name}</b><small>{item.year} · {item.category}</small></div><span>{item.type}</span><span>{item.status}</span><span>{item.sources} <ArrowUpRight size={13} /></span></a>)}</div>
-      </section>
-
-      <section className="policies-section" id="policies"><div className="section-label"><span>05 / POLICY RECORD</span><p>Initiatives and schemes</p></div><h2>From introduction<br />to recorded status.</h2><div className="policy-grid">{['Public institutions','Social policy','Infrastructure','Environment'].map((name, index) => <a href="/policy/sample" key={name}><span>0{index + 1}</span><Building2 size={20} /><h3>Illustrative {name} record</h3><p>Sample factual description with lifecycle and source metadata.</p><div>Introduced <i /> Implemented <i /> Recorded status</div></a>)}</div></section>
-
-      <section className="methodology-section" id="methodology"><div className="section-label"><span>06 / METHODOLOGY</span><p>How the record is built</p></div><div className="methodology-layout"><div><h2>Evidence first.<br />Always traceable.</h2><p>Facts are separated from objectives, outcomes and assessments. Both government records use the same evidence framework.</p><a href="/methodology">Read the full methodology <ArrowUpRight size={14} /></a></div><div>{sourceHierarchy.map(([number, title, copy]) => <div className="source-tier" key={number}><span>{number}</span><h3>{title}</h3><p>{copy}</p></div>)}</div></div></section>
-
-      <section className="end-record" id="about"><p>THE 10-YEAR RECORD</p><h2>Not a verdict.<br /><em>A record.</em></h2><div className="end-grid">{['Manifesto commitments','Legislation','Policies & schemes','Economic indicators','Foreign affairs'].map((item) => <a href="#timeline" key={item}><span>{item}</span><strong>Explore</strong><ArrowUpRight size={14} /></a>)}</div></section>
-      <footer id="sources"><div className="footer-mark"><span>INDIA</span><b>THE RECORD</b></div><div className="footer-principles"><div><b>TRACEABLE</b><span>Every substantive record links to sources.</span></div><div><b>NO PARTY NARRATIVES</b><span>Facts and methodology over political opinion.</span></div><div><b>TRANSPARENT</b><span>Inspect the evidence behind the record.</span></div></div><div className="footer-bottom"><span>DEMO PROTOTYPE · NOT A VERIFIED HISTORICAL DATASET</span><a href="#top">BACK TO TOP ↑</a></div></footer>
-    </main>
-  );
+export default function RecordExperience(){
+  const [party,setParty]=useState<PartyKey>('bjp'); const [filter,setFilter]=useState('All'); const [activeYear,setActiveYear]=useState(governments.bjp.years[0]); const [query,setQuery]=useState(''); const [indicatorKey,setIndicatorKey]=useState('gdp');
+  const {indicators:liveIndicators,status:dataStatus,lastUpdated}=useLiveEconomy();
+  const government=governments[party]; const partyTimeline=useMemo(()=>timeline.filter(e=>e.party===party),[party]); const partyPromises=useMemo(()=>promises.filter(p=>p.party===party),[party]); const reduced=useReducedMotion(); const {scrollYProgress}=useScroll(); const parallaxY=useTransform(scrollYProgress,[0,.2],[0,reduced?0:90]);
+  const indicator=liveIndicators[indicatorKey]; const economyData=indicator.values.filter(row=>party==='congress'?row.year>=2004&&row.year<=2013:row.year>=2014);
+  const partyLegislation=legislation.filter(item=>item.party===party&&item.title.toLowerCase().includes(query.toLowerCase())); const partyPolicies=policies.filter(item=>item.party===party).slice(0,8); const partyForeign=foreignPolicy.filter(item=>item.party===party);
+  const metrics=[['TRACKED',partyPromises.length],['ASSESSED',partyPromises.length],['SUBSTANTIALLY FULFILLED',partyPromises.filter(p=>p.status==='substantially_fulfilled').length],['PARTIALLY FULFILLED',partyPromises.filter(p=>p.status==='partially_fulfilled').length],['NOT FULFILLED',partyPromises.filter(p=>p.status==='not_fulfilled').length],['INSUFFICIENT EVIDENCE',partyPromises.filter(p=>p.status==='insufficient_evidence').length]] as const;
+  useEffect(()=>setActiveYear(governments[party].years[0]),[party]);
+  useEffect(()=>{ const observer=new IntersectionObserver(entries=>{const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0]; if(visible)setActiveYear(Number((visible.target as HTMLElement).dataset.year));},{rootMargin:'-35% 0px -50% 0px',threshold:[0,.5,1]}); document.querySelectorAll('[data-year]').forEach(node=>observer.observe(node)); return()=>observer.disconnect(); },[party,filter]);
+  return <main className="site-shell" data-party={party}>
+    <Intro/><motion.div className="ambient ambient-a" style={{y:parallaxY}}/><div className="ambient ambient-b"/><div className="grid-field" aria-hidden="true"/>
+    <header className="topbar"><a className="wordmark" href="#top" aria-label="India: The Record home"><span>INDIA</span><span>THE RECORD</span></a><nav aria-label="Primary navigation"><a href="#about">About</a><a href="/methodology">Methodology</a><a href="/sources">Sources</a><a className="nav-cta" href="#timeline">Explore data <ArrowUpRight size={13}/></a></nav></header>
+    <section className="hero" id="top"><motion.div className="hero-kicker" initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.25}}><span/> Public archive · Research edition</motion.div><AnimatePresence mode="wait"><motion.div className="hero-main" key={party} initial={{opacity:0,y:12,filter:'blur(7px)'}} animate={{opacity:1,y:0,filter:'blur(0px)'}} exit={{opacity:0,y:-8,filter:'blur(5px)'}} transition={{duration:.45}}><p className="eyebrow">Choose your government record</p><div className="party-switch" role="group" aria-label="Choose government record"><button className={party==='bjp'?'party-label active':'party-label'} onClick={()=>setParty('bjp')} aria-pressed={party==='bjp'}>BJP</button><button type="button" className="switch-track" aria-label={`Switch to ${party==='bjp'?'Congress':'BJP'} record`} aria-pressed={party==='congress'} onClick={()=>setParty(party==='bjp'?'congress':'bjp')}><motion.span className="switch-thumb" layout transition={{duration:.38,ease:[.22,1,.36,1]}}/></button><button className={party==='congress'?'party-label active':'party-label'} onClick={()=>setParty('congress')} aria-pressed={party==='congress'}>CONGRESS</button></div><h1><span>Switch the government.</span><br/>Explore the record.</h1><p className="hero-copy">Promises. Policies. Laws. Economy. Foreign affairs.<br/>A source-backed interactive record of Indian central governments.</p></motion.div></AnimatePresence><div className="term-card" aria-live="polite"><div><span>{government.label.toUpperCase()}</span><strong>{government.coalition}</strong></div><div><span>GOVERNING PERIOD</span><strong>{government.period}</strong></div><div><span>PRIME MINISTER</span><strong>{government.primeMinister}</strong></div><a href="#timeline" aria-label="Begin exploring the term"><ArrowDown size={18}/></a></div><div className="chapter-strip" aria-label="Explore sections">{chapters.slice(0,4).map((chapter,index)=><a href={chapter.href} key={chapter.label}><span>0{index+1}</span><div><strong>{chapter.label}</strong><small>{chapter.detail}</small></div><ArrowUpRight size={13}/></a>)}</div></section>
+    <section className="chapter-nav" aria-label="Record sections">{chapters.map(({icon:Icon,...chapter})=><a href={chapter.href} key={chapter.label}><Icon size={17}/><span><strong>{chapter.label}</strong><small>{chapter.detail}</small></span><ArrowUpRight size={12}/></a>)}</section>
+    <section className="timeline-section" id="timeline"><aside className="year-rail"><p>TIMELINE</p><div className="year-list">{government.years.map(year=><button key={year} className={activeYear===year?'active':''} onClick={()=>document.getElementById(`year-${year}`)?.scrollIntoView({behavior:reduced?'auto':'smooth'})}><span/>{year}</button>)}</div></aside><div className="timeline-content"><div className="section-intro"><span>THE DOCUMENTED RECORD</span><h2>The record, arranged<br/>year by year.</h2><p>A curated record of major central-government actions. This is not an exhaustive list and does not attribute every coalition action to one party.</p></div><div className="research-notice"><b>CURRENT RESEARCH</b> {partyTimeline.length} verified records · reviewed 27 August 2026 · {party==='bjp'?'coverage through August 2026':'completed governing period, 2004–2014'}.</div><div className="filters" role="group" aria-label="Filter timeline">{filters.map(item=><button key={item} className={filter===item?'active':''} onClick={()=>setFilter(item)}>{item}</button>)}</div>{government.years.map(year=>{const entries=partyTimeline.filter(event=>event.year===year&&(filter==='All'||event.category===filter)); return <article className="year-chapter" id={`year-${year}`} data-year={year} key={`${party}-${year}`}><div className="giant-year" aria-hidden="true">{year}</div><div className="year-heading"><span>TERM CHAPTER {String(government.years.indexOf(year)+1).padStart(2,'0')}</span><h3>{year}</h3><p>{entries.length} documented {entries.length===1?'record':'records'}</p></div><div className="record-list">{entries.length?entries.map(event=>{const recordSources=event.sourceIds.map(sourceById).filter(Boolean); return <motion.a href={`/record/${event.slug}`} className={`record-card ${event.importance}`} key={event.id} initial={{opacity:0,y:22}} whileInView={{opacity:1,y:0}} viewport={{once:true,amount:.2}}><div className="record-meta"><span>{event.category}</span><i>{event.date}</i></div><h4>{event.title}</h4><p>{event.summary}</p><div className="source-row"><ShieldCheck size={13}/> {recordSources.length} {recordSources.length===1?'source':'sources'} · {recordSources[0]?.publisher}<ArrowUpRight size={14}/></div></motion.a>}):<div className="empty-record">No researched records in this category for {year}.</div>}</div></article>})}</div></section>
+    <section className="manifesto-section" id="manifesto"><div className="section-label"><span>02 / MANIFESTO TRACKER</span><p>Commitments vs documented record</p></div><div className="manifesto-head"><h2>The distance between<br/><em>said</em> and <em>done.</em></h2><p>A curated assessment set, not a claim to cover every manifesto line. Each status defines its evidence boundary and avoids inferring outcomes from policy launch alone.</p></div><div className="metric-grid">{metrics.map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong><small>CURATED SET</small></div>)}</div><div className="promise-list">{partyPromises.map((promise,index)=><a className="promise-row" href={`/promise/${promise.id}`} key={promise.id}><span>0{index+1}</span><div><small>{promise.document}</small><h3>{promise.commitment}</h3><p>{promise.assessment}</p></div><div className={`promise-status ${promise.status}`}><b>{statusLabel[promise.status]}</b><small>Evidence {promise.evidenceStrength}</small></div><ArrowUpRight size={16}/></a>)}</div></section>
+    <section className="observatory" id="economy"><div className="observatory-grid"/><div className="section-label"><span>04 / LIVE ECONOMIC RECORD</span><p>World Bank API · latest available observations</p></div><div className={`live-data-status ${dataStatus}`}><span/>{dataStatus==='live'?`LIVE OFFICIAL API · RELEASE ${lastUpdated}`:dataStatus==='loading'?'CONNECTING TO WORLD BANK API…':'OFFICIAL FALLBACK · WORLD BANK RELEASE 2026-07-13'}</div><div className="economy-head"><div><h2>A wider lens on<br/>the economy.</h2><p>These series update from the official World Bank API on each visit. They provide context, not causal scores; annual releases are not instantaneous economic measurements.</p></div><div className="economy-index"><span>{indicator.label.toUpperCase()}</span><strong>{economyData.at(-1)?.value.toFixed(1)}</strong><small>{indicator.unit} · latest year {economyData.at(-1)?.year}</small></div></div><EconomyChart data={economyData} label={indicator.label} unit={indicator.unit}/><div className="chart-foot"><span>UNIT: {indicator.unit}</span><a href={sourceById(indicator.sourceId)?.url} target="_blank" rel="noreferrer">SOURCE: World Bank WDI ↗</a><span>NOTE: {indicator.note}</span></div><div className="indicator-tabs">{Object.entries(liveIndicators).map(([key,item],index)=><button onClick={()=>setIndicatorKey(key)} className={key===indicatorKey?'active':''} key={key}><span>0{index+1}</span>{item.shortLabel}</button>)}</div></section>
+    <section className="legislation-section" id="legislation"><div className="section-label"><span>03 / LAWS & BILLS</span><p>Legislation explorer</p></div><div className="legislation-head"><h2>Read the text.<br/>Trace the change.</h2><label><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search researched legislation" aria-label="Search legislation"/></label></div><div className="record-table"><div className="table-head"><span>NAME</span><span>YEAR</span><span>TYPE</span><span>SOURCES</span></div>{partyLegislation.map(item=><a href={`/legislation/${item.slug}`} key={item.id}><div><b>{item.title}</b><small>{item.date} · {item.category}</small></div><span>{item.year}</span><span>Central Act</span><span>{item.sourceIds.length} <ArrowUpRight size={13}/></span></a>)}</div></section>
+    <section className="policies-section" id="policies"><div className="section-label"><span>05 / POLICY RECORD</span><p>Initiatives and schemes</p></div><h2>From introduction<br/>to recorded change.</h2><div className="policy-grid">{partyPolicies.map((item,index)=><a href={`/policy/${item.slug}`} key={item.id}><span>0{index+1}</span><Building2 size={20}/><h3>{item.title}</h3><p>{item.summary}</p><div>{item.date} <i/> {item.sourceIds.length} sources</div></a>)}</div></section>
+    <section className="foreign-section" id="foreign-policy"><div className="section-label"><span>06 / FOREIGN POLICY</span><p>Chronological official record</p></div><div className="foreign-layout"><div><h2>India<br/>in the world.</h2><p>No automatic “wins” or “losses”—only actions, stated positions and documented institutional outcomes.</p></div><div>{partyForeign.map(item=><a href={`/record/${item.slug}`} key={item.id}><span>{item.year}</span><div><small>{item.date}</small><h3>{item.title}</h3><p>{item.summary}</p></div><ArrowUpRight size={15}/></a>)}</div></div></section>
+    <section className="methodology-section" id="methodology"><div className="section-label"><span>07 / METHODOLOGY</span><p>How the record is built</p></div><div className="methodology-layout"><div><h2>Evidence first.<br/>Always traceable.</h2><p>Facts, official objectives, documented changes and assessments remain separate. Both governing records use the same evidence rules.</p><a href="/methodology">Read the full methodology <ArrowUpRight size={14}/></a></div><div>{sourceHierarchy.map(([number,title,copy])=><div className="source-tier" key={number}><span>{number}</span><h3>{title}</h3><p>{copy}</p></div>)}</div></div></section>
+    <section className="end-record" id="about"><p>THE VERIFIED GOVERNING RECORD</p><h2>Not a verdict.<br/><em>A record.</em></h2><div className="end-grid">{[[`${partyTimeline.length} timeline records`,'#timeline'],[`${partyPromises.length} assessed commitments`,'#manifesto'],[`${partyLegislation.length} laws tracked`,'#legislation'],['4 live official economic series','#economy'],[`${partyForeign.length} foreign-policy records`,'#foreign-policy']].map(([item,href])=><a href={href} key={item}><span>{item}</span><strong>Explore</strong><ArrowUpRight size={14}/></a>)}</div></section>
+    <footer id="sources"><div className="footer-mark"><span>INDIA</span><b>THE RECORD</b></div><div className="footer-principles"><div><b>TRACEABLE</b><span>{sources.length} registered official and institutional sources.</span></div><div><b>LIVE WHERE POSSIBLE</b><span>Economic series refresh from the World Bank API; documentary records are verified before publication.</span></div><div><b>TRANSPARENT</b><span>Curated coverage, disclosed limits and evidence grades.</span></div></div><div className="footer-bottom"><span>RESEARCH EDITION · LAST REVIEWED 27 AUGUST 2026 · CURRENT NDA COVERAGE THROUGH AUGUST 2026</span><a href="#top">BACK TO TOP ↑</a></div></footer>
+  </main>;
 }

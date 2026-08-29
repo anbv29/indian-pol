@@ -11,5 +11,5 @@ export async function generateMetadata({params}:{params:Promise<{government:stri
 
 export default async function RecordPage({ params }: { params:Promise<{ government:string }> }) {
   const { government }=await params; const event=eventBySlug(government); if(!event) notFound(); const eventSources=expandedSourcesFor(event);
-  return <DetailShell eyebrow={event.category} title={event.title} summary={event.summary} date={event.date} evidence={`${eventSources.length} primary or institutional records`} sources={eventSources}><LongformRecordArticle event={event} sources={eventSources}/></DetailShell>;
+  return <DetailShell party={event.party} eyebrow={event.category} title={event.title} summary={event.summary} date={event.date} evidence={`${eventSources.length} primary or institutional records`} sources={eventSources}><LongformRecordArticle event={event} sources={eventSources}/></DetailShell>;
 }

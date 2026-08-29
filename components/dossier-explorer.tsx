@@ -2,8 +2,9 @@
 
 import { ArrowUpRight, Search, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { dossiers, dossierSectors, type DossierAttribution } from '../lib/data/dossiers';
+import type { PartyKey } from '../lib/data/research';
 
 const attributionLabels:Record<DossierAttribution,string> = {
   bjp:'BJP-led NDA',
@@ -15,12 +16,19 @@ export function DossierExplorer() {
   const [query,setQuery]=useState('');
   const [sector,setSector]=useState('All sectors');
   const [attribution,setAttribution]=useState<'all'|DossierAttribution>('all');
+  const [activeParty,setActiveParty]=useState<PartyKey>('bjp');
+  useEffect(()=>{
+    const requestedParty=new URLSearchParams(window.location.search).get('party');
+    const storedParty=sessionStorage.getItem('india-record-active-party');
+    const resolvedParty=requestedParty==='bjp'||requestedParty==='congress'?requestedParty:storedParty;
+    if(resolvedParty==='bjp'||resolvedParty==='congress')setActiveParty(resolvedParty);
+  },[]);
   const filtered=useMemo(()=>dossiers.filter(dossier=>{
     const haystack=[dossier.title,dossier.deck,dossier.sector,dossier.kind,dossier.government,...dossier.countries].join(' ').toLowerCase();
     return (sector==='All sectors'||dossier.sector===sector)&&(attribution==='all'||dossier.attribution===attribution)&&haystack.includes(query.toLowerCase().trim());
   }),[query,sector,attribution]);
 
-  return <main className="dossier-index-page">
+  return <main className="dossier-index-page" data-party={activeParty}>
     <header className="dossier-index-nav"><Link href="/" prefetch={false}><span>INDIA</span><b>THE RECORD</b></Link><Link href="/" prefetch={false}>← Back to record</Link></header>
     <section className="dossier-index-hero"><p>DEEP RESEARCH ARCHIVE · REVIEWED 28 AUGUST 2026</p><h1>Beyond the<br/><em>headline.</em></h1><div><p>What the law, treaty or policy actually contains. Who gains, who carries the risk, what implementation changed—and which consequential clauses were public but easy to miss.</p><strong>{dossiers.length} dossiers<br/>{dossierSectors.length} sectors<br/>{new Set(dossiers.flatMap(item=>item.countries)).size} countries or blocs</strong></div></section>
     <section className="dossier-scope"><ShieldCheck size={18}/><div><b>Evidence boundary</b><p>This is a curated Union-level archive from 2004 onward, not every Gazette notification or classified record. “Public but under-read” means the point appears in an official document but rarely survives into the headline. It does not mean secret or unlawfully obtained information.</p></div></section>

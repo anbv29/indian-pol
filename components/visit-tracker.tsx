@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 const VISITS_KEY='india-record-browser-visits';
-const LOAD_KEY='india-record-last-counted-load';
 const ACTIVE_TIME_KEY='india-record-active-time-ms';
 const EVENT_NAME='india-record-visit-stats';
 
@@ -20,14 +20,20 @@ function readStats():VisitStats {
 function announce(stats:VisitStats){ window.dispatchEvent(new CustomEvent<VisitStats>(EVENT_NAME,{detail:stats})); }
 
 export function SiteVisitTracker(){
+  const pathname=usePathname();
+  const lastCountedPath=useRef<string|null>(null);
+
+  useEffect(()=>{
+    if(lastCountedPath.current===pathname)return;
+    lastCountedPath.current=pathname;
+    const stats=readStats();
+    const nextStats={...stats,visits:stats.visits+1};
+    localStorage.setItem(VISITS_KEY,String(nextStats.visits));
+    announce(nextStats);
+  },[pathname]);
+
   useEffect(()=>{
     let stats=readStats();
-    const loadId=String(Math.round(performance.timeOrigin));
-    if(sessionStorage.getItem(LOAD_KEY)!==loadId){
-      stats={...stats,visits:stats.visits+1};
-      localStorage.setItem(VISITS_KEY,String(stats.visits));
-      sessionStorage.setItem(LOAD_KEY,loadId);
-    }
     let activeMs=stats.activeMs;
     let lastTick=performance.now();
     const flush=()=>{
@@ -43,8 +49,12 @@ export function SiteVisitTracker(){
     document.addEventListener('visibilitychange',flush);
     window.addEventListener('focus',flush);
     window.addEventListener('blur',flush);
+    const syncFromAnotherTab=(event:StorageEvent)=>{
+      if(event.key===VISITS_KEY)announce(readStats());
+    };
+    window.addEventListener('storage',syncFromAnotherTab);
     return()=>{
-      flush(); window.clearInterval(timer); window.removeEventListener('pagehide',flush); document.removeEventListener('visibilitychange',flush); window.removeEventListener('focus',flush); window.removeEventListener('blur',flush);
+      flush(); window.clearInterval(timer); window.removeEventListener('pagehide',flush); document.removeEventListener('visibilitychange',flush); window.removeEventListener('focus',flush); window.removeEventListener('blur',flush); window.removeEventListener('storage',syncFromAnotherTab);
     };
   },[]);
   return null;
@@ -52,7 +62,12 @@ export function SiteVisitTracker(){
 
 export function VisitorStats(){
   const snapshot=useSyncExternalStore(
-    callback=>{window.addEventListener(EVENT_NAME,callback);return()=>window.removeEventListener(EVENT_NAME,callback);},
+    callback=>{
+      window.addEventListener(EVENT_NAME,callback);
+      const syncFromAnotherTab=(event:StorageEvent)=>{if(event.key===VISITS_KEY)callback();};
+      window.addEventListener('storage',syncFromAnotherTab);
+      return()=>{window.removeEventListener(EVENT_NAME,callback);window.removeEventListener('storage',syncFromAnotherTab);};
+    },
     ()=>{const stats=readStats();return `${stats.visits}|${stats.activeMs}`;},
     ()=>'0|0',
   );

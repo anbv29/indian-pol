@@ -18,7 +18,7 @@ export default async function DossierPage({params}:{params:Promise<{slug:string}
   const recordSources=dossier.sourceIds.map(dossierSourceById).filter((source):source is Source=>Boolean(source));
   const attribution=dossier.attribution==='cross'?'Cross-government record':dossier.attribution==='bjp'?'BJP-led NDA record':'Congress-led UPA record';
   const supplement=dossierSupplement(dossier);
-  return <DetailShell eyebrow={`${dossier.kind} · ${dossier.sector}`} title={dossier.title} summary={dossier.deck} date={dossier.date} evidence={`${recordSources.length} primary or institutional records`} sources={recordSources}>
+  return <DetailShell party={dossier.attribution} eyebrow={`${dossier.kind} · ${dossier.sector}`} title={dossier.title} summary={dossier.deck} date={dossier.date} evidence={`${recordSources.length} primary or institutional records`} sources={recordSources}>
     <section className="dossier-factbar"><span>ATTRIBUTION<b>{attribution}</b></span><span>GOVERNMENT<b>{dossier.government}</b></span><span>STATUS<b>{dossier.status}</b></span><span>COUNTRIES / BLOC<b>{dossier.countries.join(' · ')}</b></span></section>
     <div className="article-standard"><span>LONG-FORM PUBLIC EXPLAINER</span><strong>{supplement.totalWordCount.toLocaleString('en-IN')} words</strong><small>≈ {supplement.readingMinutes} minute read · provisions, trade-offs and evidence limits included</small></div>
     <DetailBlock label="THE FULL PICTURE" title="What happened—and what it set in motion" text={dossier.overview}/>
